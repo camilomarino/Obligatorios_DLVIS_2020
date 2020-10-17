@@ -80,8 +80,15 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
-
+        y1 = X@W1 + b1
+        
+        y1[y1<0] = 0
+        
+        y2 = y1@W2 + b2
+        
+        scores = y2
+        
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # If the targets are not given then jump out, we're done
@@ -97,8 +104,15 @@ class TwoLayerNet(object):
         # classifier loss.                                                          #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        
+        loss = 0
+        
+        y2_exp = np.exp(y2)
+        probs = y2_exp / y2_exp.sum(axis=1).reshape((-1,1))
+        probs = probs[np.arange(len(y)), y]
+        loss += np.sum(-np.log(probs)) / y.shape[0]
+        
+        loss += reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
