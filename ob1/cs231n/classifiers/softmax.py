@@ -33,8 +33,36 @@ def softmax_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    D, C = W.shape
+    N, _ = X.shape
 
+    def soft(s):
+        return np.exp(s)/np.sum(np.exp(s))
+        
+
+    for i in range(N):
+        xW = X[i]@W
+        
+        prob = soft(xW)
+        
+        loss += -np.log(prob[y[i]])
+        
+        dW += X[i].reshape((-1,1)) @ prob.reshape((1,-1)) 
+        dW[:,y[i]] -= X[i]
+        # for k in range(D):
+        #     for l in range(C):
+        #         delta = 1 if y[i]==l else 0
+        #         dW[k, l] += (prob[l]-delta)*X[i,k]
+        # for j in range(dW.shape[1]):
+        #   dW[:,j] += X[i] * prob[j]
+        # dW[:,y[i]] -= X[i]
+    
+    loss /= N
+    dW /= N
+    
+    loss += reg * np.sum(W * W)
+    dW += reg * 2 * W     
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
@@ -57,9 +85,31 @@ def softmax_loss_vectorized(W, X, y, reg):
     # regularization!                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    D, C = W.shape
+    N, _ = X.shape
+    
+    XW = X@W
+    exp_XW = np.exp(XW)
+    
+    denominador = np.sum(exp_XW, axis=1)
+    numeradores = exp_XW
+    numerador = numeradores[np.arange(len(y)), y]
+    #import ipdb; ipdb.set_trace()
+    salidas = -np.log(numerador/denominador)
+    
+    loss += salidas.sum()
+    #print(salidas.shape)
+    loss /= N
+    loss += reg * np.sum(W * W)
+    
+    #import ipdb; ipdb.set_trace()
+    dW += X.T @ (numeradores/denominador.reshape((-1,1)))
+    
+    for i in range(N):
+        dW[:,y[i]] -= X[i]
+    dW /= N
+    dW += reg * 2 * W  
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
