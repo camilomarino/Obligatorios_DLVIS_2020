@@ -80,13 +80,13 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        y1 = X@W1 + b1
+        s1 = X@W1 + b1
         
-        y1[y1<0] = 0
+        s1[s1<0] = 0
         
-        y2 = y1@W2 + b2
+        s2 = s1@W2 + b2
         
-        scores = y2
+        scores = s2
         
         
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -107,12 +107,14 @@ class TwoLayerNet(object):
         
         loss = 0
         
-        y2_exp = np.exp(y2)
-        probs = y2_exp / y2_exp.sum(axis=1).reshape((-1,1))
-        probs = probs[np.arange(len(y)), y]
+        s2_exp = np.exp(s2)
+        soft_out = s2_exp / s2_exp.sum(axis=1).reshape((-1,1))
+        probs = soft_out[np.arange(len(y)), y]
         loss += np.sum(-np.log(probs)) / y.shape[0]
         
-        loss += reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+        loss += reg * (np.sum(W1 * W1) + np.sum(W2 * W2) + np.sum(b1*b1) +
+                       np.sum(b2*b2)
+                       )
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -124,8 +126,30 @@ class TwoLayerNet(object):
         # grads['W1'] should store the gradient on W1, and be a matrix of same size #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        
+        y_one_hot = np.zeros_like(soft_out)
+        y_one_hot[np.arange(len(y)), y] = 1
+        ds2 = soft_out - y_one_hot
+        ds2 /= N
+        
+        dW2 = s1.T @ ds2
+        dW2 +=  2 * reg * W2
+        
+        db2 = ds2.sum(axis=0)
+        db2 += 2 * reg * b2
+        
+        ds1 = ds2 @ W2.T * (s1>0)
+        
+        dW1 = X.T @ ds1
+        dW1 +=  2 * reg * W1
+        
+        db1 = ds1.sum(axis=0)
+        db1 += 2 * reg * b1
+        
+        
+        
+        
+        grads['W1'], grads['W2'], grads['b1'], grads['b2'] = dW1, dW2, db1, db2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -170,7 +194,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            samples = np.random.choice(X.shape[0], batch_size)
+            X_batch = X[samples]
+            y_batch = y[samples]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -186,7 +212,8 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            for name_matrix in grads:
+                self.params[name_matrix] -= learning_rate*grads[name_matrix]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -232,7 +259,12 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        s1 = X@self.params['W1'] + self.params['b1']
+        s1[s1<0] = 0
+        s2 = s1@self.params['W2'] + self.params['b2']
+        scores = s2       
+        
+        y_pred = np.argmax(scores, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
