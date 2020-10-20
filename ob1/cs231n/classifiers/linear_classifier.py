@@ -13,7 +13,7 @@ class LinearClassifier(object):
         self.W = None
 
     def train(self, X, y, learning_rate=1e-3, reg=1e-5, num_iters=100,
-              batch_size=200, verbose=False):
+              batch_size=200, verbose=False, T=1):
         """
         Train this linear classifier using stochastic gradient descent.
 
@@ -63,7 +63,7 @@ class LinearClassifier(object):
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             # evaluate loss and gradient
-            loss, grad = self.loss(X_batch, y_batch, reg)
+            loss, grad = self.loss(X_batch, y_batch, reg, T)
             loss_history.append(loss)
 
             # perform parameter update
@@ -137,5 +137,5 @@ class LinearSVM(LinearClassifier):
 class Softmax(LinearClassifier):
     """ A subclass that uses the Softmax + Cross-entropy loss function """
 
-    def loss(self, X_batch, y_batch, reg):
-        return softmax_loss_vectorized(self.W, X_batch, y_batch, reg)
+    def loss(self, X_batch, y_batch, reg, T):
+        return softmax_loss_vectorized(self.W, X_batch, y_batch, reg, T)

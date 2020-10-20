@@ -68,7 +68,7 @@ def softmax_loss_naive(W, X, y, reg):
     return loss, dW
 
 
-def softmax_loss_vectorized(W, X, y, reg):
+def softmax_loss_vectorized(W, X, y, reg, T=1):
     """
     Softmax loss function, vectorized version.
 
@@ -89,7 +89,7 @@ def softmax_loss_vectorized(W, X, y, reg):
     N, _ = X.shape
     
     XW = X@W
-    exp_XW = np.exp(XW)
+    exp_XW = np.exp(XW/T)
     
     denominador = np.sum(exp_XW, axis=1)
     numeradores = exp_XW
@@ -103,11 +103,12 @@ def softmax_loss_vectorized(W, X, y, reg):
     loss += reg * np.sum(W * W)
     
     #import ipdb; ipdb.set_trace()
-    dW += X.T @ (numeradores/denominador.reshape((-1,1)))
+    soft_out = numeradores/denominador.reshape((-1,1))
+    soft_out[np.arange(len(y)),y] -= 1
+    dW += X.T @ soft_out
     
-    for i in range(N):
-        dW[:,y[i]] -= X[i]
     dW /= N
+    dW /= T
     dW += reg * 2 * W  
     
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
