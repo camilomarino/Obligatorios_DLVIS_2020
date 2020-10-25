@@ -55,7 +55,13 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        self.params['W1'] = np.random.normal(loc=0, scale=weight_scale, 
+                                             size=(input_dim, hidden_dim))
+        self.params['b1'] = np.zeros(hidden_dim)        
+        
+        self.params['W2'] = np.random.normal(loc=0, scale=weight_scale, 
+                                             size=(hidden_dim, num_classes))
+        self.params['b2'] = np.zeros(num_classes)        
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -88,7 +94,18 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        Y_af1, cache_af1 = affine_forward(X, self.params['W1'], 
+                                          self.params['b1'])
+        
+        Y_relu1, cache_relu1 = relu_forward(Y_af1)
+        
+        Y_af2, cache_af2 = affine_forward(Y_relu1, self.params['W2'], 
+                                          self.params['b2'])
+        scores = Y_af2
+        
+        
+        
+        
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -112,7 +129,22 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # en dout se va guardando el gradiente hacia adelante
+        loss, dout = softmax_loss(scores, y)
+        
+        dout, grads['W2'], grads['b2'] = affine_backward(dout,
+                                                         cache_af2)
+        dout = relu_backward(dout, cache_relu1)
+        
+        _, grads['W1'], grads['b1'] = affine_backward(dout,
+                                                      cache_af1)
+        
+        # Agrego los terminos de regularizacion a la loss y al gradiente
+        for vector in grads.keys():   
+            # Los bias no van a la regularizacion, en principio pensaba que si
+            if vector[0] == 'W':
+                grads[vector] += self.reg * self.params[vector]   
+                loss += 1/2 * self.reg * np.sum(self.params[vector]**2)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -191,9 +223,20 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
+        
+        # La idea es hacer un for que va agregando las matrices a self.params
+        hidden_dims = [input_dim] + hidden_dims + [num_classes]
+        for i in range(len(hidden_dims)-1):
+            # Calculo del tamanio de la matriz
+            Di = hidden_dims[i]
+            Mi = hidden_dims[i+1]
+            
+            # Indice del nombre de la matriz
+            j = i + 1
+            self.params[f'W{j}'] = np.random.normal(loc=0, scale=weight_scale, 
+                                             size=(Di, Mi))
+            self.params[f'b{j}'] = np.zeros(Mi)    
+            
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -253,8 +296,21 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        
+        scores = X.reshape((X.shape[0], -1))
+        # entrada a la capa lineal
+        entrada_affine = {}
+        # entrada a la relu
+        entrada_relu = {}
+        
+        # Se van guardando los caches intermedios en entrada_affine y 
+        # entrada_relu porque son necesarios para computar el backward
+        for i in range(1, self.num_layers+1):
+            scores, entrada_affine[i] = affine_forward(scores, self.params[f'W{i}'],
+                                    self.params[f'b{i}'])
+            if i != self.num_layers:
+                scores, entrada_relu[i]= relu_forward(scores)
+            
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -281,7 +337,22 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dout = softmax_loss(scores, y)
+        
+        # Aporte de la regularizacion L2 a la loss
+        for vector in self.params.keys():
+            if vector[0] == 'W':
+                loss += 1/2 * self.reg * np.sum(self.params[vector]**2)
+        
+        for i in reversed(range(1, self.num_layers+1)):
+            dout, grads[f'W{i}'], grads[f'b{i}'] = affine_backward(dout, 
+                                                            entrada_affine[i])
+            if i>1: # no hay capa Relu inicial
+                dout = relu_backward(dout, entrada_relu[i-1])
+        
+        # Aporte de la regularizacion L2 a los gradientes
+        for vector in grads.keys():
+            grads[vector] += self.reg * self.params[vector]   
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
