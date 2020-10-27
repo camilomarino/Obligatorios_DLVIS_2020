@@ -302,6 +302,8 @@ class FullyConnectedNet(object):
         entrada_affine = {}
         # entrada a la relu
         entrada_relu = {}
+        # entrada a dropout
+        cache_dropout = {}
         
         # Se van guardando los caches intermedios en entrada_affine y 
         # entrada_relu porque son necesarios para computar el backward
@@ -310,6 +312,9 @@ class FullyConnectedNet(object):
                                     self.params[f'b{i}'])
             if i != self.num_layers:
                 scores, entrada_relu[i]= relu_forward(scores)
+                if self.use_dropout:
+                    scores, cache_dropout[i] = dropout_forward(scores, self.dropout_param)
+                    
             
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -347,8 +352,11 @@ class FullyConnectedNet(object):
         for i in reversed(range(1, self.num_layers+1)):
             dout, grads[f'W{i}'], grads[f'b{i}'] = affine_backward(dout, 
                                                             entrada_affine[i])
-            if i>1: # no hay capa Relu inicial
+            if i>1: # no hay capa Relu (ni de dropout) inicial
+                if self.use_dropout:
+                    dout = dropout_backward(dout, cache_dropout[i-1])
                 dout = relu_backward(dout, entrada_relu[i-1])
+                
         
         # Aporte de la regularizacion L2 a los gradientes
         for vector in grads.keys():
