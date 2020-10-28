@@ -154,6 +154,7 @@ class TwoLayerNet(object):
         return loss, grads
 
 
+
 class FullyConnectedNet(object):
     """
     A fully-connected neural network with an arbitrary number of hidden layers,
@@ -237,7 +238,7 @@ class FullyConnectedNet(object):
                                              size=(Di, Mi))
             self.params[f'b{j}'] = np.zeros(Mi)
             
-            if self.normalization == "batchnorm" and i!=(len(hidden_dims)-2): 
+            if self.normalization == "batchnorm" and i!=(len(dims)-2): 
                 # La  ultima capa no tiene batch-norm
                 self.params[f'beta{j}'] = np.zeros(Mi)
                 self.params[f'gamma{j}'] = np.ones(Mi)
@@ -306,23 +307,37 @@ class FullyConnectedNet(object):
     
         out = X.reshape((X.shape[0], -1))
         
-        if self.use_dropout:
+        if self.use_dropout and self.normalization == "batchnorm":
+            hidden_layer_forward = affine_batchnorm_relu_dropout_forward
+            hidden_layer_backward = affine_batchnorm_relu_dropout_backward
+            
+        elif self.use_dropout and self.normalization is None:
             hidden_layer_forward = affine_relu_dropout_forward
             hidden_layer_backward = affine_relu_dropout_backward
+            
+        elif not self.use_dropout and self.normalization == "batchnorm":
+            hidden_layer_forward = affine_batchnorm_relu_forward
+            hidden_layer_backward = affine_batchnorm_relu_backward
+            
         else:
             hidden_layer_forward = affine_relu_forward
             hidden_layer_backward = affine_relu_backward
+            
         
         cache = {}
         for i in range(1, self.num_layers):
-            out, cache[i] = hidden_layer_forward(out, 
-                                            self.params[f'W{i}'], 
-                                            self.params[f'b{i}'],
-                                            self.dropout_param)
+            bn_param = None if self.normalization is None else self.bn_params[i-1]
+            out, cache[i] = hidden_layer_forward(x=out, 
+                                            w=self.params[f'W{i}'], 
+                                            b=self.params[f'b{i}'],
+                                            p=self.dropout_param,
+                                            gamma=self.params.get(f'gamma{i}'),
+                                            beta=self.params.get(f'beta{i}'),
+                                            bn_param=bn_param)
         i = self.num_layers
-        scores, cache[i] = affine_forward(out, 
-                                        self.params[f'W{i}'], 
-                                        self.params[f'b{i}'])
+        scores, cache[i] = affine_forward(x=out, 
+                                        w=self.params[f'W{i}'], 
+                                        b=self.params[f'b{i}'])
         
         
         
@@ -363,13 +378,18 @@ class FullyConnectedNet(object):
         dout, grads[f'W{i}'], grads[f'b{i}'] = affine_backward(dout, cache[i])
         
         for i in reversed(range(1, self.num_layers)):
-            dout, grads[f'W{i}'], grads[f'b{i}'] = hidden_layer_backward(dout, 
+            if self.normalization == "batchnorm":
+                dout, grads[f'W{i}'], grads[f'b{i}'], grads[f'gamma{i}'], grads[f'beta{i}'] = hidden_layer_backward(dout, 
+                                                                     cache[i])
+            else:
+                dout, grads[f'W{i}'], grads[f'b{i}'] = hidden_layer_backward(dout, 
                                                                      cache[i])
                 
         
         # Aporte de la regularizacion L2 a los gradientes
         for vector in grads.keys():
-            grads[vector] += self.reg * self.params[vector]   
+            if vector[0] == 'W':
+                grads[vector] += self.reg * self.params[vector]   
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
