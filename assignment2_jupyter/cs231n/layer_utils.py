@@ -7,7 +7,38 @@ from .layers import *
 from .fast_layers import *
 
 
-def affine_relu_forward(x, w, b):
+def affine_relu_dropout_forward(x, w, b, p):
+    """
+    Convenience layer that perorms an affine transform followed by a ReLU
+
+    Inputs:
+    - x: Input to the affine layer
+    - w, b: Weights for the affine layer
+    - p: dropout param
+
+    Returns a tuple of:
+    - out: Output from the Dropout Layer
+    - cache: Object to give to the backward pass
+    """
+    a, fc_cache = affine_forward(x, w, b)
+    r, relu_cache = relu_forward(a)
+    out, dropout_cache = dropout_forward(r, p)
+    
+    cache = (fc_cache, relu_cache, dropout_cache)
+    return out, cache
+
+def affine_relu_dropout_backward(dout, cache):
+    """
+    Backward pass for the affine-relu-dropout convenience layer
+    """
+    fc_cache, relu_cache, dropout_cache = cache
+    ddrop = dropout_backward(dout, dropout_cache)
+    da = relu_backward(ddrop, relu_cache)
+    dx, dw, db = affine_backward(da, fc_cache)
+    return dx, dw, db
+
+
+def affine_relu_forward(x, w, b, *k):
     """
     Convenience layer that perorms an affine transform followed by a ReLU
 
@@ -25,7 +56,7 @@ def affine_relu_forward(x, w, b):
     return out, cache
 
 
-def affine_relu_backward(dout, cache):
+def affine_relu_backward(dout, cache, *k):
     """
     Backward pass for the affine-relu convenience layer
     """

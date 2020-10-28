@@ -225,17 +225,23 @@ class FullyConnectedNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         
         # La idea es hacer un for que va agregando las matrices a self.params
-        hidden_dims = [input_dim] + hidden_dims + [num_classes]
-        for i in range(len(hidden_dims)-1):
+        dims = [input_dim] + hidden_dims + [num_classes]
+        for i in range(len(dims)-1):
             # Calculo del tamanio de la matriz
-            Di = hidden_dims[i]
-            Mi = hidden_dims[i+1]
+            Di = dims[i]
+            Mi = dims[i+1]
             
             # Indice del nombre de la matriz
             j = i + 1
             self.params[f'W{j}'] = np.random.normal(loc=0, scale=weight_scale, 
                                              size=(Di, Mi))
-            self.params[f'b{j}'] = np.zeros(Mi)    
+            self.params[f'b{j}'] = np.zeros(Mi)
+            
+            if self.normalization == "batchnorm" and i!=(len(hidden_dims)-2): 
+                # La  ultima capa no tiene batch-norm
+                self.params[f'beta{j}'] = np.zeros(Mi)
+                self.params[f'gamma{j}'] = np.ones(Mi)
+                
             
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -297,25 +303,29 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         
-        scores = X.reshape((X.shape[0], -1))
-        # entrada a la capa lineal
-        entrada_affine = {}
-        # entrada a la relu
-        entrada_relu = {}
-        # entrada a dropout
-        cache_dropout = {}
+    
+        out = X.reshape((X.shape[0], -1))
         
-        # Se van guardando los caches intermedios en entrada_affine y 
-        # entrada_relu porque son necesarios para computar el backward
-        for i in range(1, self.num_layers+1):
-            scores, entrada_affine[i] = affine_forward(scores, self.params[f'W{i}'],
-                                    self.params[f'b{i}'])
-            if i != self.num_layers:
-                scores, entrada_relu[i]= relu_forward(scores)
-                if self.use_dropout:
-                    scores, cache_dropout[i] = dropout_forward(scores, self.dropout_param)
-                    
-            
+        if self.use_dropout:
+            hidden_layer_forward = affine_relu_dropout_forward
+            hidden_layer_backward = affine_relu_dropout_backward
+        else:
+            hidden_layer_forward = affine_relu_forward
+            hidden_layer_backward = affine_relu_backward
+        
+        cache = {}
+        for i in range(1, self.num_layers):
+            out, cache[i] = hidden_layer_forward(out, 
+                                            self.params[f'W{i}'], 
+                                            self.params[f'b{i}'],
+                                            self.dropout_param)
+        i = self.num_layers
+        scores, cache[i] = affine_forward(out, 
+                                        self.params[f'W{i}'], 
+                                        self.params[f'b{i}'])
+        
+        
+        
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -349,13 +359,12 @@ class FullyConnectedNet(object):
             if vector[0] == 'W':
                 loss += 1/2 * self.reg * np.sum(self.params[vector]**2)
         
-        for i in reversed(range(1, self.num_layers+1)):
-            dout, grads[f'W{i}'], grads[f'b{i}'] = affine_backward(dout, 
-                                                            entrada_affine[i])
-            if i>1: # no hay capa Relu (ni de dropout) inicial
-                if self.use_dropout:
-                    dout = dropout_backward(dout, cache_dropout[i-1])
-                dout = relu_backward(dout, entrada_relu[i-1])
+        i = self.num_layers
+        dout, grads[f'W{i}'], grads[f'b{i}'] = affine_backward(dout, cache[i])
+        
+        for i in reversed(range(1, self.num_layers)):
+            dout, grads[f'W{i}'], grads[f'b{i}'] = hidden_layer_backward(dout, 
+                                                                     cache[i])
                 
         
         # Aporte de la regularizacion L2 a los gradientes
