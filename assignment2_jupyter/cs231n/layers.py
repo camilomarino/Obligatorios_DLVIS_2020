@@ -489,7 +489,34 @@ def conv_forward_naive(x, w, b, conv_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    
+    pad = conv_param.get('pad', 0)
+    stride = conv_param.get('stride', 1)
+    
+    H_ = int(1 + (H + 2 * pad - HH) / stride)
+    W_ = int(1 + (W + 2 * pad - WW) / stride)
+    
+    x_pad = np.zeros((N, C, H+2*pad, W+2*pad))
+    x_pad[:, :, pad:-pad, pad:-pad] = x
+    
+    out = np.zeros((N, F, H_, W_))
+    
+    
+    for n in range(N): #n: numero de muestra
+        for f in range(F): #f: numero de filtro
+            for i in range(H_): #i: fila
+                for j in range(W_): #j: columna
+                    # 
+                    u = x_pad[n, :, i*stride:i*stride+HH, j*stride:j*stride+WW]
+                    h = w[f, :, :, :]
+                    out[n, f, i, j] = np.sum(u*h) + b[f]
+            
+        
+    
+    cache = (x, w, b, conv_param)
+        
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
