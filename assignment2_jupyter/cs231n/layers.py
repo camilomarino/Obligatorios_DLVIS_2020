@@ -545,7 +545,33 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, w, b, conv_param = cache
+    stride, pad = conv_param['stride'], conv_param['pad']
+    N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    _, _, H_, W_ = dout.shape
+    
+    x_pad = np.zeros((N, C, H+2*pad, W+2*pad))
+    x_pad[:, :, pad:-pad, pad:-pad] = x
+    
+    dx = np.zeros_like(x)
+    dw = np.zeros_like(w)
+    db = np.zeros_like(b)
+    # Se agrega un gradiente auxiliar respecto a xpad por simplicidad
+    dx_pad = np.zeros_like(x_pad) 
+    
+    # Se calcula el gradiente repecto de x,w y b respecto a d[n,f,i,j]
+    for n in range(N): #n: numero de muestra
+        for f in range(F): #f: numero de filtro
+            for i in range(H_): #i: fila
+                for j in range(W_): #j: columna
+                    dl_dy = dout[n, f, i, j]
+                    db[f] += dl_dy
+                    dw[f] += dl_dy * x_pad[n, :, i*stride:i*stride+HH, j*stride:j*stride+WW]
+                    dx_pad[n, :, i*stride:i*stride+HH, j*stride:j*stride+WW] += (
+                                                                        dl_dy * w[f])
+                    
+    dx = dx_pad[:, :, pad:-pad, pad:-pad]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
