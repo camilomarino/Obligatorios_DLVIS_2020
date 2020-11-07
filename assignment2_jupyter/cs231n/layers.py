@@ -604,9 +604,22 @@ def max_pool_forward_naive(x, pool_param):
     # TODO: Implement the max-pooling forward pass                            #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    N, C, H, W = x.shape
+    pool_height, pool_width, stride = (pool_param['pool_height'], 
+                                       pool_param['pool_width'], 
+                                       pool_param['stride'])
+    H_ = int(1 + (H - pool_height) / stride)
+    W_ = int(1 + (W - pool_width) / stride)
+    
+    out = np.empty((N, C, H_, W_))
+    
+    for n in range(N): #n: numero de muestra
+        for c in range(C): #c: numero de canal
+            for i in range(H_): #i: fila
+                for j in range(W_): #j: columna 
+                    region = x[n, c, i*stride:i*stride+pool_height, j*stride:j*stride+pool_width]
+                    out[n, c, i, j] = np.max(region)
+                    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -632,7 +645,25 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, pool_param = cache
+    
+    N, C, H, W = x.shape
+    pool_height, pool_width, stride = (pool_param['pool_height'], 
+                                       pool_param['pool_width'], 
+                                       pool_param['stride'])
+    H_ = int(1 + (H - pool_height) / stride)
+    W_ = int(1 + (W - pool_width) / stride)
+    
+    dx = np.zeros_like(x)
+    
+    for n in range(N): #n: numero de muestra
+        for c in range(C): #c: numero de canal
+            for i in range(H_): #i: fila
+                for j in range(W_): #j: columna 
+                    region = x[n, c, i*stride:i*stride+pool_height, j*stride:j*stride+pool_width]
+                    idx_max = np.unravel_index(region.argmax(), region.shape) #da el indice con el shape adecuado
+                    idx_max += np.array([i*stride, j*stride])
+                    dx[n, c, idx_max[0], idx_max[1]] += dout[n, c, i, j]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
