@@ -756,6 +756,69 @@ def spatial_batchnorm_backward(dout, cache):
     return dx, dgamma, dbeta
 
 
+def bloque1_forward(x, eps):
+    '''
+    Se refier a un parte del forward de batch normalization
+    '''
+    # Step 1. m = 1 / N \sum x_i
+    m = np.mean(x, axis=0, keepdims=True)
+        
+    # Step 2. xc = x - m
+    xc = x - m
+    
+    # Step 3. xc2 = xc ^ 2
+    xcsq = xc ** 2
+    
+    # Step 4. v = 1 / N \sum xc2_i
+    v = np.mean(xcsq, axis=0, keepdims=True)
+    
+    # Step 5. vsq = sqrt(v + eps)
+    vsqrt = np.sqrt(v + eps)
+    
+    # Step 6. invv = 1 / vsq
+    invv = 1.0 / vsqrt
+    
+    # Step 7. xn = xc * invv
+    xn = xc * invv
+    
+    out = xn
+    
+    cache = (x, xc, vsqrt, v, invv, xn, eps)
+    
+    return out, cache
+
+def bloque1_backward(dout, cache):
+    N, D = dout.shape
+    
+    x, xc, vsqrt, v, invv, xn, eps = cache
+    
+    # Step 7. xn = xc * invv
+    dxc1 = dout * invv
+    dinvv = np.sum(dout * xc, axis=0)
+  
+    # Step 6. invv = 1 / vsqrt
+    dvsqrt = -1 / (vsqrt ** 2) * dinvv
+  
+    # Step 5. vsqrt = sqrt(v + eps)
+    dv = 0.5 * dvsqrt / np.sqrt(v + eps)
+  
+    # Step 4. v = 1 / N \sum xcsq_i
+    dxcsq = 1.0 / N * np.ones((N, D)) * dv
+  
+    # Step 3. xcsq = xc ^ 2
+    dxc2 = 2.0 * dxcsq * xc
+  
+    # Step 2. xc = x - m
+    dx1 = dxc1 + dxc2
+    dm = - np.sum(dxc1 + dxc2, axis=0, keepdims=True)
+  
+    # Step 1. m = 1 / N \sum x_i
+    dx2 = 1.0 / N * np.ones((N, D)) * dm
+  
+    dx = dx1 + dx2
+    
+    return dx
+
 def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     """
     Computes the forward pass for spatial group normalization.
@@ -784,8 +847,35 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     # the bulk of the code is similar to train-time batch normalization       #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    
+    
+    # Se usan fuertemente las ideas de batchnorm_forward y batchnorm_backward
+    # Ademas se implementan un subnodo llamado "bloque1" que basicamente hace 
+    # una parte interna de batchnorm.
+    # En 
+    # https://iie.fing.edu.uy/~cmarino/DLVis/assignment2/apuntes_spatial_groupnorm.pdf
+    # se puede observar esquematicamente el razonamiento (es desporlijo, pero
+    # es lo que se uso para pensarlo)
+    
+    N, C, H, W = x.shape
+    
+    #step 1
+    xr = x.reshape((-1, int(C/G*H*W))).T
+    #inverse: x=xr.T.reshape((N, C, H, W))
+    
+    #step2
+    xb1, cache_b1 = bloque1_forward(xr, eps)
+    
+    #step3
+    xn = xb1.T.reshape((N, C, H, W))
+    
+    #step 4
+    xg = xn * gamma.reshape((1,-1,1,1))
+    
+    #step 5
+    out = xg + beta.reshape((1,-1,1,1))
+    
+    cache = (x, xr, xb1, cache_b1, xn, xg, gamma, G)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -814,8 +904,27 @@ def spatial_groupnorm_backward(dout, cache):
     # normalization.                                                          #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    N, C, H, W = dout.shape
+    
+    (x, xr, xb1, cache_b1, xn, xg, gamma, G) = cache
+    
+    #step5
+    dbeta = dout.sum((0,2,3), keepdims=True)
+    dxg = dout
+    
+    #step4
+    dgamma = np.sum(dxg*xn, (0,2,3), keepdims=True)
+    dxn = dxg * gamma.reshape((1,-1,1,1))
+    
+    #step3
+    dxb1 = dxn.reshape((-1, int(C/G*H*W))).T
+    
+    #step2
+    dxr = bloque1_backward(dxb1, cache_b1)
+    
+    #step1
+    dx = dxr.T.reshape((N, C, H, W))
+   
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
