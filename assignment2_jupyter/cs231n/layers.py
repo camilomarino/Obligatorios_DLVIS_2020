@@ -399,7 +399,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        mask = np.random.binomial(1, p, size=(1, x.shape[1])) / p
+        mask = (np.random.uniform(size=x.shape)<p) / p
         out = x * mask
         
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
