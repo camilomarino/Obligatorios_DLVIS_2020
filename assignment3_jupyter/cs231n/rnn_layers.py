@@ -36,8 +36,14 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    xh = x @ Wx
+    hh = prev_h @ Wh
+    
+    xhb = xh + hh + b
+    
+    next_h = np.tanh(xhb)
 
+    cache = (x, prev_h, Wx, Wh, xhb, hh, xh)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -69,8 +75,22 @@ def rnn_step_backward(dnext_h, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, prev_h, Wx, Wh, xhb, hh, xh = cache
+    
+    dxhb = (1 - np.tanh(xhb)**2) * dnext_h
+    dhh = dxhb
+    dxh = dxhb
+    
+    db = np.sum(dxhb, axis=0)
+    
+    dWx = x.T @ dxh 
+    dx = dxh @ Wx.T
 
+    dWh = prev_h.T @ dhh
+    
+    dprev_h = dhh @ Wh.T
+    
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -104,8 +124,17 @@ def rnn_forward(x, h0, Wx, Wh, b):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    N, T, D = x.shape
+    _, H = h0.shape
+    
+    cache = list()
+    
+    h = np.zeros((N, T, H), dtype=float)
+    for t in range(T):
+        h_prev = h0 if t==0 else h[:, t-1, :]
+        h[:, t, :], cache_t = rnn_step_forward(x[:, t, :], h_prev, Wx, Wh, b)
+        cache.append(cache_t)
+        
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -140,7 +169,26 @@ def rnn_backward(dh, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, H = dh.shape
+    _, D= cache[0][0].shape
+    
+    dx = np.zeros((N, T, D))
+    dh0, dWx, dWh, db = 0, 0, 0, 0
+    
+    # dx, dprev_h, dWx, dWh, db
+    dh_next = 0
+    for t in reversed(range(T)):
+        
+        dh_t  = dh[:, t, :] + dh_next
+        dx_, dprev_h_, dWx_, dWh_, db_ = rnn_step_backward(dh_t, 
+                                                           cache[t])
+        dh_next = dprev_h_
+        dx[:, t, :] = dx_
+        dWx += dWx_
+        dWh += dWh_
+        db += db_
+        if t==0: dh0 = dprev_h_        
+        
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -172,7 +220,8 @@ def word_embedding_forward(x, W):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = W[x]
+    cache = (x, W, out)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -205,7 +254,20 @@ def word_embedding_backward(dout, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    (x, W, out) = cache
+    N, T, D = dout.shape
+    dW = np.zeros(W.shape)
+    
+    # Naive version con loops
+    # for n in range(N):
+    #     for t in range(T):
+    #         dW[x[n, t]] += dout[n, t, :]
+    
+    # Sin loops usando la sugerencia
+    np.add.at(dW, x, dout)
+    
+    
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
