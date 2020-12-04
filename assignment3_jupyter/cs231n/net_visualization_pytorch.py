@@ -34,8 +34,17 @@ def compute_saliency_maps(X, y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = X.shape
+    
+    scores = model(X)
+    
+    y_pred = scores.gather(1, y.view(-1, 1)).squeeze()
+    
+    loss = -1/N * (y_pred.sum())
 
+    loss.backward()
+    
+    saliency = X.grad.abs().amax(dim=1)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                             END OF YOUR CODE                               #
@@ -76,7 +85,21 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    for k in range(100):
+        if X_fooling.grad is not None: X_fooling.grad.zero_()
+        
+        scores = model(X_fooling)
+        target_predict = scores.argmax()
+        print(f'iter {k}\t predict class: {target_predict}')
+        if target_predict==target_y:
+            break
+        
+        loss = scores[0, target_y]
+        loss.backward()
+        
+        with torch.no_grad():
+            g = X_fooling.grad.data
+            X_fooling += learning_rate * g /torch.norm(g, 2)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -94,7 +117,20 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    if img.grad is not None: img.grad.zero_()
+    
+    scores = model(img)
+    s_y = scores[0, target_y]
+    
+    R = l2_reg * (img**2).sum()
+    
+    f = s_y - R
+    
+    f.backward()
+    
+    with torch.no_grad():
+        img += learning_rate * img.grad
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ########################################################################
