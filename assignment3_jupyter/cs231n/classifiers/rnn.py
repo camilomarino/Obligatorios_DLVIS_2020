@@ -158,7 +158,7 @@ class CaptioningRNN(object):
         if self.cell_type=='rnn':
             h, cache_h = rnn_forward(embed, h0, Wx, Wh, b)
         elif self.cell_type=='lstm':
-            pass
+            h, cache_h = lstm_forward(embed, h0, Wx, Wh, b)
         
         scores, cache_scores = temporal_affine_forward(h, W_vocab, b_vocab)
         
@@ -169,7 +169,7 @@ class CaptioningRNN(object):
         if self.cell_type=='rnn':
             dout, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dout, cache_h)
         elif self.cell_type=='lstm':
-            pass#lstm_backward(dout, cache_h)
+            dout, dh0, grads['Wx'], grads['Wh'], grads['b']= lstm_backward(dout, cache_h)
             
         grads['W_embed'] = word_embedding_backward(dout, cache_embed)
         
@@ -246,12 +246,18 @@ class CaptioningRNN(object):
         h0 = features @ W_proj + b_proj
         
         h = h0
+        if self.cell_type=='lstm': c = np.zeros_like(h)
+        
         embedding, _ = word_embedding_forward( np.full((N,1), self._start), W_embed )
         embedding = embedding[:, 0, :]
         #import ipdb; ipdb.set_trace()
         for t in range(max_length):
             
-            h, _ = rnn_step_forward(embedding, h, Wx, Wh, b)
+            if self.cell_type=='rnn':
+                h, _ = rnn_step_forward(embedding, h, Wx, Wh, b)
+            elif self.cell_type=='lstm':
+                h, c, _ = lstm_step_forward(embedding, h, c, Wx, Wh, b)
+                
             
             scores, _ = temporal_affine_forward(h[:, np.newaxis, :], W_vocab, b_vocab)
             index_word = scores[:, 0, :].argmax(axis=1)

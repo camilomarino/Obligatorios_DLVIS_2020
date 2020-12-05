@@ -319,7 +319,32 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, D = x.shape
+    _, H = prev_h.shape
+    
+    a = x@Wx + prev_h@Wh + b #size=(N,4H)
+    
+    ai = a[:, :H]
+    af = a[:, H:2*H]
+    ao = a[:, 2*H:3*H]
+    ag = a[:, 3*H:4*H]
+    
+    i = sigmoid(ai)
+    f = sigmoid(af)
+    o = sigmoid(ao)
+    g = np.tanh(ag)
+    
+    # calculo de c_t+1 (rama superior)
+    fc = prev_c * f
+    ig = i * g
+    next_c = fc + ig
+    
+    # calculo de h_t+1
+    tanh_next_c = np.tanh(next_c)
+    next_h = o * tanh_next_c    
+    
+    cache = (x, prev_h, prev_c, Wx, Wh, b, a, ai, af, ao, ag, i, f, o, g, fc,
+             ig, next_c, tanh_next_c, next_h)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -355,7 +380,40 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    (x, prev_h, prev_c, Wx, Wh, b, a, ai, af, ao, ag, i, f, o, g, fc,
+             ig, next_c, tanh_next_c, next_h) = cache
+    
+    tanh_derivate = lambda x: 1-np.tanh(x)**2
+    sigmoid_derivate = lambda x: sigmoid(x)*(1-sigmoid(x))
+    
+    
+    dnext_c_2 = dnext_h*o * tanh_derivate(next_c)
+    dnext_c_1 = dnext_c + dnext_c_2
+    dfc = dnext_c_1
+    dprev_c = dfc * f
+    
+    do = dnext_h * tanh_next_c
+    dao = do * sigmoid_derivate(ao)
+    
+    dig = dnext_c_1
+    dg = dig * i
+    di = dig * g
+    dag = dg * tanh_derivate(ag)
+    dai = di * sigmoid_derivate(ai)
+    
+    df = dfc * prev_c
+    daf = df * sigmoid_derivate(af)
+    
+    da = np.hstack((dai, daf, dao, dag))
+    
+    dWx = x.T @ da
+    dx = da @ Wx.T
+    
+    dWh = prev_h.T @ da
+    dprev_h = da @ Wh.T
+    
+    db = np.sum(da, axis=0)
+     
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -394,7 +452,23 @@ def lstm_forward(x, h0, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, D = x.shape
+    _, H = h0.shape
+    
+    cache = list()
+    
+    h = np.zeros((N, T, H), dtype=float)
+    c = np.zeros((N, T, H), dtype=float)
+    
+    c0 = np.zeros((N, H), dtype=float)
+    
+    for t in range(T):
+        h_prev = h0 if t==0 else h[:, t-1, :]
+        c_prev = c0 if t==0 else c[:, t-1, :]
+        h[:, t, :], c[:, t, :], cache_t = lstm_step_forward(x[:, t, :], 
+                                                            h_prev, c_prev, 
+                                                            Wx, Wh, b)
+        cache.append(cache_t)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -426,7 +500,31 @@ def lstm_backward(dh, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, T, H = dh.shape
+    _, D= cache[0][0].shape
+    
+    dx = np.zeros((N, T, D))
+    dh0, dWx, dWh, db = 0, 0, 0, 0
+    
+    # dx, dprev_h, dWx, dWh, db
+    dh_next = 0
+    dc_next = 0
+    for t in reversed(range(T)):
+        
+        dh_t  = dh[:, t, :] + dh_next
+        dc_t = dc_next
+        
+        dx_, dprev_h_, dprev_c, dWx_, dWh_, db_ = lstm_step_backward(dh_t, 
+                                                                     dc_t,
+                                                                     cache[t])
+        dh_next = dprev_h_
+        dc_next = dprev_c
+        dx[:, t, :] = dx_
+        dWx += dWx_
+        dWh += dWh_
+        db += db_
+        if t==0: dh0 = dprev_h_        
+        
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
