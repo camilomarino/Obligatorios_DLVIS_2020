@@ -21,7 +21,7 @@ Vea la consigna de las tareas en:
 - [Q5](assignment2_jupyter/TensorFlow.ipynb): PyTorch / TensorFlow on CIFAR-10. (_Hecho en Pytorch_)
 
 ### Entregable 3:
-- [Q1](assignment3_jupyter/RNN_Captioning.ipynb): Subtitulado de Imágenes con Vanilla RNNs. (_Done_)
+- [Q1](assignment3_jupyter/RNN_Captioning.ipynb): Subtitulado de Imágenes con Vanilla RNNs. (_Hecho_)
 - [Q2](assignment3_jupyter/LSTM_Captioning.ipynb): Subtitulado de Imágenes con LSTMs. (_Hecho_)
 - [Q3](assignment3_jupyter/NetworkVisualization-TensorFlow.ipynb): Network Visualization: Saliency maps, Class Visualization, and Fooling Images. (_Hecho en Pytorch_)
 - [Q4](assignment3_jupyter/StyleTransfer-TensorFlow.ipynb): Style Transfer. (_Hecho en Pytorch_)
